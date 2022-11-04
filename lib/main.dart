@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 void main() {
   runApp(const MyApp());
@@ -6,6 +7,7 @@ void main() {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -13,7 +15,8 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: DateTimeProvider(
+          api: Api(), child: const MyHomePage(title: 'Flutter Demo Home Page')),
     );
   }
 }
@@ -28,40 +31,70 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  ValueKey _textKey = const ValueKey<String>("");
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: Text(DateTimeProvider.of(context)?.api.dateAndTime ?? ""),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-
-          ],
+      body: GestureDetector(
+        onTap: () async {
+          final api = DateTimeProvider.of(context)?.api;
+          final dateTime = await api?._getDateAndTime();
+          setState(() {
+            _textKey = ValueKey(dateTime);
+          });
+        },
+        child: Center(
+          child: Container(
+            child: DateTimeWidget(),
+          ),
         ),
       ),
     );
   }
 }
 
-
-class Api{
+class Api {
   String? dateAndTime;
 
-
-  Future<String> _getDateAndTime()
-  {
-    return Future.delayed(const Duration(seconds: 1), () => DateTime.now().toIso8601String()).then((value)  {
+  Future<String> _getDateAndTime() {
+    return Future.delayed(
+            const Duration(seconds: 1), () => DateTime.now().toIso8601String())
+        .then((value) {
       dateAndTime = value;
       return value;
     });
   }
+}
 
+class DateTimeProvider extends InheritedWidget {
+  final Api api;
+  final String uuid;
 
+  DateTimeProvider({
+    Key? key,
+    required Widget child,
+    required this.api,
+  })  : uuid = const Uuid().v4(),
+        super(key: key, child: child);
+
+  @override
+  bool updateShouldNotify(InheritedWidget oldWidget) => true;
+
+  static DateTimeProvider? of(BuildContext context) {
+    return context.findAncestorWidgetOfExactType();
+  }
+}
+
+class DateTimeWidget extends StatelessWidget {
+  const DateTimeWidget({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final api = DateTimeProvider.of(context)?.api;
+    return Text(api?.dateAndTime ?? "Tap on screen to fetch date and time");
+  }
 }
