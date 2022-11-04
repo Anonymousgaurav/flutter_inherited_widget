@@ -1,5 +1,6 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,13 +12,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: DateTimeProvider(
-          api: Api(), child: const MyHomePage(title: 'Flutter Demo Home Page')),
-    );
+        title: 'Flutter Demo',
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+        ),
+        home: const MyHomePage(title: 'Flutter Demo Home Page'));
   }
 }
 
@@ -31,70 +30,36 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  ValueKey _textKey = const ValueKey<String>("");
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(DateTimeProvider.of(context)?.api.dateAndTime ?? ""),
+        title: Text(""),
       ),
       body: GestureDetector(
-        onTap: () async {
-          final api = DateTimeProvider.of(context)?.api;
-          final dateTime = await api?._getDateAndTime();
-          setState(() {
-            _textKey = ValueKey(dateTime);
-          });
-        },
+        onTap: () async {},
         child: Center(
-          child: Container(
-            child: DateTimeWidget(),
-          ),
+          child: Container(),
         ),
       ),
     );
   }
 }
 
-class Api {
-  String? dateAndTime;
+enum AvailableColors { one, two }
 
-  Future<String> _getDateAndTime() {
-    return Future.delayed(
-            const Duration(seconds: 1), () => DateTime.now().toIso8601String())
-        .then((value) {
-      dateAndTime = value;
-      return value;
-    });
-  }
-}
+final allColors = [
+  Colors.blue,
+  Colors.red,
+  Colors.yellow,
+  Colors.orange,
+  Colors.cyan,
+  Colors.purple,
+  Colors.brown,
+  Colors.amber,
+  Colors.green
+];
 
-class DateTimeProvider extends InheritedWidget {
-  final Api api;
-  final String uuid;
-
-  DateTimeProvider({
-    Key? key,
-    required Widget child,
-    required this.api,
-  })  : uuid = const Uuid().v4(),
-        super(key: key, child: child);
-
-  @override
-  bool updateShouldNotify(InheritedWidget oldWidget) => true;
-
-  static DateTimeProvider? of(BuildContext context) {
-    return context.findAncestorWidgetOfExactType();
-  }
-}
-
-class DateTimeWidget extends StatelessWidget {
-  const DateTimeWidget({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final api = DateTimeProvider.of(context)?.api;
-    return Text(api?.dateAndTime ?? "Tap on screen to fetch date and time");
-  }
+extension RandomElement<T> on Iterable<T> {
+  T getRandomElement() => elementAt(Random().nextInt(length));
 }
