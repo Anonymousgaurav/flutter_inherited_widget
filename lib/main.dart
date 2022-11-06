@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,90 +10,97 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: DateTimeProvider(
-          api: Api(), child: const MyHomePage(title: 'Flutter Demo Home Page')),
-    );
+        title: 'Flutter Demo',
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+        ),
+        home: const HomePage());
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+final sliderData = SliderData();
 
-  final String title;
+class SliderInheritedNotifier extends InheritedNotifier<SliderData> {
+  const SliderInheritedNotifier({
+    required Widget child,
+    required SliderData sliderData,
+    Key? key,
+  }) : super(
+          notifier: sliderData,
+          child: child,
+          key: key,
+        );
 
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  /// to get the data from sliderData class and notifies the listeners
+  static double of(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<SliderInheritedNotifier>()
+          ?.notifier
+          ?.value ??
+      0.0;
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  ValueKey _textKey = const ValueKey<String>("");
+class HomePage extends StatelessWidget {
+  const HomePage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(DateTimeProvider.of(context)?.api.dateAndTime ?? ""),
+        title: const Text("My HomePage"),
       ),
-      body: GestureDetector(
-        onTap: () async {
-          final api = DateTimeProvider.of(context)?.api;
-          final dateTime = await api?._getDateAndTime();
-          setState(() {
-            _textKey = ValueKey(dateTime);
-          });
-        },
-        child: Center(
-          child: Container(
-            child: DateTimeWidget(),
-          ),
-        ),
-      ),
+      body: SliderInheritedNotifier(
+          sliderData: sliderData,
+          child: Builder(builder: (context) {
+            return Column(
+              children: [
+                Slider(
+                  value: SliderInheritedNotifier.of(context),
+                  onChanged: (value) {
+                    sliderData.newValue = value;
+                  },
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
+                    Opacity(
+                      opacity: SliderInheritedNotifier.of(context),
+                      child: Container(
+                        height: 200.0,
+                        width: 100.0,
+                        color: Colors.yellow,
+                      ),
+                    ),
+                    Opacity(
+                      opacity: SliderInheritedNotifier.of(context),
+                      child: Container(
+                        height: 200.0,
+                        width: 100.0,
+                        color: Colors.red,
+                      ),
+                    )
+                  ].equallyExpaned().toList(),
+                ),
+              ],
+            );
+          })),
     );
   }
 }
 
-class Api {
-  String? dateAndTime;
-
-  Future<String> _getDateAndTime() {
-    return Future.delayed(
-            const Duration(seconds: 1), () => DateTime.now().toIso8601String())
-        .then((value) {
-      dateAndTime = value;
-      return value;
-    });
-  }
+extension ExpandEqually on Iterable<Widget> {
+  Iterable<Widget> equallyExpaned() => map((widget) => Expanded(child: widget));
 }
 
-class DateTimeProvider extends InheritedWidget {
-  final Api api;
-  final String uuid;
+class SliderData extends ChangeNotifier {
+  double _value = 0.0;
 
-  DateTimeProvider({
-    Key? key,
-    required Widget child,
-    required this.api,
-  })  : uuid = const Uuid().v4(),
-        super(key: key, child: child);
+  double get value => _value;
 
-  @override
-  bool updateShouldNotify(InheritedWidget oldWidget) => true;
-
-  static DateTimeProvider? of(BuildContext context) {
-    return context.findAncestorWidgetOfExactType();
-  }
-}
-
-class DateTimeWidget extends StatelessWidget {
-  const DateTimeWidget({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final api = DateTimeProvider.of(context)?.api;
-    return Text(api?.dateAndTime ?? "Tap on screen to fetch date and time");
+  set newValue(double newValue) {
+    if (newValue != _value) {
+      _value = newValue;
+      notifyListeners();
+    }
   }
 }
