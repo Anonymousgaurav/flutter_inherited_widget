@@ -1,4 +1,7 @@
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 void main() {
@@ -6,95 +9,174 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
+    return ChangeNotifierProvider(
+      create: (_) => BreadCrumbProvider(),
+      child: MaterialApp(
+        title: 'Flutter Demo',
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+        ),
+        home: const HomePage(),
+        routes: {'/new': (context) => const NewBreadCrumbWidget()},
       ),
-      home: DateTimeProvider(
-          api: Api(), child: const MyHomePage(title: 'Flutter Demo Home Page')),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  ValueKey _textKey = const ValueKey<String>("");
+class HomePage extends StatelessWidget {
+  const HomePage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(DateTimeProvider.of(context)?.api.dateAndTime ?? ""),
+        title: Text("HomePage"),
       ),
-      body: GestureDetector(
-        onTap: () async {
-          final api = DateTimeProvider.of(context)?.api;
-          final dateTime = await api?._getDateAndTime();
-          setState(() {
-            _textKey = ValueKey(dateTime);
-          });
-        },
-        child: Center(
-          child: Container(
-            child: DateTimeWidget(),
+      body: Column(
+        children: [
+          Consumer<BreadCrumbProvider>(builder: (context, value, child) {
+            return BreadCrumbsWidget(breadCrumbs: value.items);
+          }),
+          TextButton(
+            onPressed: () {
+              Navigator.pushNamed(context, "/new");
+            },
+            child: const Text("Add new bread crump"),
           ),
-        ),
+          TextButton(
+            onPressed: () {
+              /// on press we have to communicate with provider
+              /// read when we want to communicate with provider. Like we want to tell provider, Hey Provider Do this
+              /// use read when you are going to do one way communication generallly on Tap
+              context.read<BreadCrumbProvider>().reset();
+            },
+            child: const Text("Reset"),
+          ),
+        ],
       ),
     );
   }
 }
 
-class Api {
-  String? dateAndTime;
+class BreadCrumbsWidget extends StatelessWidget {
+  final UnmodifiableListView<BreadCrumb> breadCrumbs;
 
-  Future<String> _getDateAndTime() {
-    return Future.delayed(
-            const Duration(seconds: 1), () => DateTime.now().toIso8601String())
-        .then((value) {
-      dateAndTime = value;
-      return value;
-    });
-  }
-}
-
-class DateTimeProvider extends InheritedWidget {
-  final Api api;
-  final String uuid;
-
-  DateTimeProvider({
-    Key? key,
-    required Widget child,
-    required this.api,
-  })  : uuid = const Uuid().v4(),
-        super(key: key, child: child);
-
-  @override
-  bool updateShouldNotify(InheritedWidget oldWidget) => true;
-
-  static DateTimeProvider? of(BuildContext context) {
-    return context.findAncestorWidgetOfExactType();
-  }
-}
-
-class DateTimeWidget extends StatelessWidget {
-  const DateTimeWidget({Key? key}) : super(key: key);
+  const BreadCrumbsWidget({required this.breadCrumbs, Key? key})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final api = DateTimeProvider.of(context)?.api;
-    return Text(api?.dateAndTime ?? "Tap on screen to fetch date and time");
+    return Wrap(
+      children: breadCrumbs.map(
+        (crumps) {
+          return Text(
+            crumps.title,
+            style:
+                TextStyle(color: crumps.isActive ? Colors.blue : Colors.black),
+          );
+        },
+      ).toList(),
+    );
+  }
+}
+
+class BreadCrumb {
+  bool isActive;
+  final String name;
+  final String uuid;
+
+  BreadCrumb({required this.isActive, required this.name})
+      : uuid = const Uuid().v4();
+
+  void activate() {
+    isActive = true;
+  }
+
+  /// This operator is useful when you need to compare actual values of two objects/classses,
+  /// because flutter by default Compares instances of objects and that case two objects will never be same even
+  /// their actual values are same
+  @override
+  bool operator ==(covariant BreadCrumb other) => uuid == other.uuid;
+
+  /// if we override the equality operator (==) in our subclass, we SHOULD override the hashCode method too.
+  /// hash-based collection, both equality operator (==) and hashCode are used when doing the comparison.
+  @override
+  int get hashCode => uuid.hashCode;
+
+  String get title => name + (isActive ? ">" : "");
+}
+
+class BreadCrumbProvider extends ChangeNotifier {
+  final List<BreadCrumb> _items = [];
+
+  ///  It creates a copy of the original List, and that copy cannot be mutated. Mutating the original List will not affect the copy.
+  UnmodifiableListView<BreadCrumb> get items => UnmodifiableListView(_items);
+
+  void add(BreadCrumb crumb) {
+    for (final item in _items) {
+      item.activate();
+    }
+    _items.add(crumb);
+    notifyListeners();
+  }
+
+  void reset() {
+    _items.clear();
+    notifyListeners();
+  }
+}
+
+class NewBreadCrumbWidget extends StatefulWidget {
+  const NewBreadCrumbWidget({Key? key}) : super(key: key);
+
+  @override
+  State<NewBreadCrumbWidget> createState() => _NewBreadCrumbWidgetState();
+}
+
+class _NewBreadCrumbWidgetState extends State<NewBreadCrumbWidget> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _controller.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Add new BreadCrumb"),
+      ),
+      body: Column(
+        children: [
+          TextField(
+            controller: _controller,
+            decoration: const InputDecoration(
+                hintText: "Enter new Bread Crumb Here....."),
+          ),
+          TextButton(
+              onPressed: () {
+                if (_controller.text.isNotEmpty) {
+                  final breadCrumb =
+                      BreadCrumb(isActive: false, name: _controller.text);
+                  context.read<BreadCrumbProvider>().add(breadCrumb);
+                  Navigator.of(context).pop(context);
+                }
+              },
+              child: const Text("Add New..."))
+        ],
+      ),
+    );
   }
 }
